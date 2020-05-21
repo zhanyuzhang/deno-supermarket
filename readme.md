@@ -9,6 +9,10 @@ Use deno + ts + mongodb to build a supermarket App!
 deno run -A --unstable ./server.ts 
 ```
 
+After launching successfully, you can visit the page on http://localhost:8000/pages/ .
+
+
+
 ## UI
 ![](https://ok.166.net/gameyw-misc/opd/squash/20200521/173754-5hdm8j1w6c.png)
 
