@@ -12,7 +12,7 @@ const app = new Application();
 app
   .static('/pages', './public') // 静态资源
 
-  // 以下是5个api
+  // 以下是增删查改的api
   .get("/api/goods", fetchAllGoods)
   .post("/api/goods", createGood)
   .get("/api/goods/:name", fetchOneGood)
@@ -20,4 +20,4 @@ app
   .delete("/api/goods/:id", deleteGood)
 
   .start({ port: 8000 });
-  console.log('listening on port 8000')
+  console.log('start successfully. you can visit it on http://localhost:8000/pages/')
