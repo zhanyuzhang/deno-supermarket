@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deno Supermarket</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+  
+  <style>
+    .toolbar {
+      padding: 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    input#inputSearch {
+      margin-left: 20px;
+      width: 12em;
+    }
+
+    .btn {
+      margin: 0 0.5em;
+    }
+
+    th,
+    td {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btnAdd" data-toggle="modal" data-target="#exampleModal">添加商品</button>
+      <input type="email" class="form-control" id="inputSearch" placeholder="输入商品名称查询">
+      <button class="btn btn-success" id="btnSearch" onclick="fetchOneGood()">搜索商品</button>
+    </div>
+    <table class="table table-striped" id="tableGoods">
+    </table>
+    
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">添加商品</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form class="form-horizontal">
+              <input type="hidden" id="goodId">
+              <div class="form-group">
+                  <label for="" class="control-label">商品名称</label>
+                  <input type="email" class="form-control" id="goodName" placeholder="请输入商品名称">
+               
+              </div>
+              <div class="form-group">
+                  <label class="control-label">商品价格</label>
+                  <input type="text" class="form-control" id="goodPrice" placeholder="请输入商品价格">
+              </div>
+              <div class="form-group">
+                <label class="control-label">商品描述</label>
+                  <input type="text" class="form-control" id="goodDesc" placeholder="请输入商品描述">
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal" id="btnClose">Close</button>
+            <button type="button" class="btn btn-primary" id="btnSave" onclick="handlerSave()">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $tableGoods = $('#tableGoods');
+    const $goodId = $('#goodId');
+    const $goodName = $('#goodName');
+    const $goodPrice = $('#goodPrice');
+    const $goodDesc = $('#goodDesc');
+    
+    const api = '/api/goods';
+
+    let allData = [];
+
+    function superFetch(url, config = {}) {
+      return fetch(url, config)
+        .then(res => res.json())
+        .then(res => {
+          const { code, data = {}, msg } = res;
+          if(code != 200) {
+            throw new Error(msg);
+          }
+          return data;
+        })
+    }
+
+    function renderGoods(data = []) {
+      allData = data;
+      const headerRow = `
+        <tr>
+          <th>商品id</th>
+          <th>商品名称</th>
+          <th>商品价格</th>
+          <th>商品描述</th>
+          <th>操作</th>
+        </tr>
+      `;
+       const rows = data.map(row => `
+          <tr data-id="${row.id}" data-content="${JSON.stringify(row)}">
+            <td>${row.id}</td>
+            <td>${row.name}</td>
+            <td>${row.price}</td>
+            <td>${row.desc}</td>
+            <td>
+              <button class="btn btn-danger" id="btnDelete">删除</button>
+              <button class="btn btn-info" id="btnUpdate"  data-toggle="modal" data-target="#exampleModal">修改</button>
+            </td>
+          </tr>
+        `);
+
+      $tableGoods.html(headerRow + rows.join(''));
+    }
+
+    // 添加或修改商品的表单处理
+    function handlerSave() {
+      const id = $goodId.val().trim();
+      const name = $goodName.val().trim();
+      const price = $goodPrice.val().trim();
+      const desc = $goodDesc.val().trim();
+      
+      if(!name || !price || !desc) {
+        return alert('字段不能为空！')
+      }
+
+      // 如果没有 id 则是新建
+      if(!id) {
+        this.createGood({
+          name,
+          price,
+          desc
+        })
+      } else {
+        this.updateGood({
+          id,
+          name,
+          price,
+          desc
+        })
+      }
+    }
+
+    // 获取所有的商品
+    function fetchAllGoods() {
+      return superFetch(api, {
+        method: 'get',
+      })
+      .then(res => {
+        renderGoods(res);
+      })
+    }
+
+
+    // 添加商品
+    function createGood(goodInfo) {
+      return superFetch(api, {
+        method: 'post',
+        body: JSON.stringify(goodInfo)
+      })
+     
+      .then(res => {
+          fetchAllGoods();
+          $goodName.val('');
+          $goodDesc.val('');
+          $goodPrice.val('');
+          $('#btnClose').trigger('click');
+        })
+        .catch(err => {
+          aler(err.message);
+        })
+    }
+
+    // 通过商品名称搜索一个商品
+    function fetchOneGood() {
+      const goodName = $('#inputSearch').val().trim();
+      if(!goodName) {
+        return fetchAllGoods();
+      }
+
+      return superFetch(api + '/' + goodName)
+      .then(res => {
+        renderGoods([res]);
+      })
+      .catch(err => {
+        renderGoods([])
+      })
+    }
+
+    // 更新商品
+    function updateGood(goodInfo) {
+      const id = goodInfo.id;
+      delete goodInfo.id;
+      superFetch(api + '/' + id, {
+        method: 'put',
+        body: JSON.stringify(goodInfo)
+      }).then(() => {
+        fetchAllGoods();
+        $('#btnClose').trigger('click');
+      }).catch(err => {
+        alert(err.message)
+      })
+    }
+
+    // 删除商品
+    function deleteGood(id) {
+      if(!window.confirm('确定要删除吗？')) {
+        return 
+      };
+      fetch(api + '/' + id, {
+        method: 'delete'
+      })
+      .then(res => {
+        fetchAllGoods();
+      })
+      .catch(err => {
+          aler(err.message);
+        })
+    }
+
+
+    // 获取所有的商品数据
+    fetchAllGoods();
+    $('#btnAdd').click(() => {
+      $goodId.val('')
+    });
+
+    // 监听删除表格的和修改按钮
+    $tableGoods.on('click', (e) => {
+      const $target = $(e.target);
+      if($target.attr('id') === 'btnDelete') {
+        const id = $target.parents('tr').data('id');
+        deleteGood(id);
+      }
+      if($target.attr('id') === 'btnUpdate') {
+        const id = $target.parents('tr').data('id');
+        const item = allData.find(item => item.id === id) || {};
+  
+        const { name, price, desc} = item;
+        $goodName.val(name)
+        $goodPrice.val(price)
+        $goodDesc.val(desc);
+        
+        $goodId.val(id);
+      }
+    });
+  </script>
+</body>
+</html>
